@@ -1,0 +1,222 @@
+================================================================================
+PROMPT FOR CLAUDE: GENERATE 4 ROLE-BASED SEQUENCE DIAGRAMS (16:9 PPT RATIO)
+FOR REAL ESTATE CRM & CHANNEL PARTNER MANAGEMENT SYSTEM
+================================================================================
+
+[COPY AND PASTE EVERYTHING BELOW INTO CLAUDE]
+
+--------------------------------------------------------------------------------
+ROLE & OBJECTIVE:
+You are an expert Enterprise System Architect and UML Specialist. Your task is to generate 4 formal, clean, and professional Sequence Diagrams for a Master of Science (M.Sc.) Final Project: "Real Estate CRM & Channel Partner Management System" (MERN Stack).
+
+The 4 Sequence Diagrams represent the sequential message flows for the 4 project roles:
+1. System Administrator (Admin)
+2. Sales & Operations Manager (Manager)
+3. Sales Representative (Agent)
+4. External Broker (Channel Partner)
+
+--------------------------------------------------------------------------------
+REQUIRED ARCHITECTURAL PATTERN & VISUAL TEMPLATE (MATCHING THE 3-LIFELINE PATTERN):
+Each sequence diagram MUST follow this clean 3-lifeline architecture with dark headers/footers and standard UML solid/dashed message arrows:
+
+   옷 [Actor]                 ┌───────────────────┐             ┌───────────────────┐
+     (User Role)              │    CRM System     │             │     Database      │
+        │                     └─────────┬─────────┘             └─────────┬─────────┘
+        │                               │                                 │
+        │─── 1: Action Request ────────>│                                 │
+        │                               │─── 2: DB Query / Save ─────────>│
+        │                               │                                 │
+        │                               │<··· 3: Success / Data Return ···│
+        │<··· 4: Response / Display ····│                                 │
+        │                               │                                 │
+        │─── 5: Next Action ───────────>│                                 │
+        │                               │─── 6: DB Update / Process ─────>│
+        │                               │                                 │
+        │                               │<··· 7: DB Confirmation ·········│
+        │<··· 8: Action Success ········│                                 │
+        │                               │                                 │
+        │                     ┌─────────┴─────────┐             ┌─────────┴─────────┐
+     (User Role)              │    CRM System     │             │     Database      │
+   옷 [Actor]                 └───────────────────┘             └───────────────────┘
+
+--------------------------------------------------------------------------------
+DETAILED ROLE SEQUENCES (BASED ON THE REAL ESTATE CRM CODEBASE):
+
+================================================================================
+1. ADMIN SEQUENCE DIAGRAM (System Administrator)
+================================================================================
+Lifelines:
+• Lifeline 1: Admin (Actor)
+• Lifeline 2: CRM System (React Frontend & Node.js Express Backend)
+• Lifeline 3: Database (MongoDB Document Database)
+
+Message Sequence:
+1. [Login Flow]
+   - Admin -> CRM System: Login With Admin Credentials
+   - CRM System -> Database: Validate Admin (email, password hash)
+   - Database --> CRM System: Valid (User Document & Role: "Admin")
+   - CRM System --> Admin: Login Successfully & Admin Dashboard Displayed
+
+2. [Manage Users & Roles Flow]
+   - Admin -> CRM System: Create New User Account (Name, Email, Number, Role, Location)
+   - CRM System -> Database: Save User Record (Bcrypt Password Hashing)
+   - Database --> CRM System: User Record Created Successfully
+   - CRM System --> Admin: User Account Created Confirmation Shown
+
+3. [Create & Configure Project Flow]
+   - Admin -> CRM System: Create Project (Name, Description, Location, Mandate Status)
+   - CRM System -> Database: Save Project Data in projects_collection
+   - Database --> CRM System: Project Saved Successfully
+   - CRM System --> Admin: Project Created Successfully
+
+4. [Assign Agents to Projects Flow]
+   - Admin -> CRM System: Assign Sales Agents to Project
+   - CRM System -> Database: Update assignedAgents ObjectId Array in Project
+   - Database --> CRM System: Project Agent Mapping Updated
+   - CRM System --> Admin: Agents Assigned Successfully Notification
+
+5. [Verify Channel Partner Flow]
+   - Admin -> CRM System: Verify Channel Partner Application (Check RERA/PAN/GST)
+   - CRM System -> Database: Set isVerified: true & Generate User Account
+   - Database --> CRM System: CP Account Activated & Updated
+   - CRM System --> Admin: Partner Verified & Login Credentials Emailed
+
+================================================================================
+2. MANAGER SEQUENCE DIAGRAM (Sales & Operations Manager)
+================================================================================
+Lifelines:
+• Lifeline 1: Manager (Actor)
+• Lifeline 2: CRM System (React Frontend & Node.js Express Backend)
+• Lifeline 3: Database (MongoDB Document Database)
+
+Message Sequence:
+1. [Login Flow]
+   - Manager -> CRM System: Login With Manager Credentials
+   - CRM System -> Database: Validate Manager Credentials & Role
+   - Database --> CRM System: Valid (Manager Profile & JWT Token)
+   - CRM System --> Manager: Login Successfully & Manager Dashboard Displayed
+
+2. [Bulk CSV Lead Import Flow]
+   - Manager -> CRM System: Upload CSV Lead File (Selected Project & Agents)
+   - CRM System -> Database: Parse Headers, Validate & Bulk Insert Leads
+   - Database --> CRM System: Bulk Leads Inserted Successfully
+   - CRM System --> Manager: Bulk Upload Summary & Import Confirmation Displayed
+
+3. [Direct Lead Intake & Notification Flow]
+   - Manager -> CRM System: Create Single Lead (Name, Phone, Email, Source)
+   - CRM System -> Database: Save Lead & Query Assigned Agent/Manager Emails
+   - Database --> CRM System: Lead Saved & Email Recipients Returned
+   - CRM System --> Manager: Lead Created & Automated Email Alerts Dispatched
+
+4. [Review & Verify Channel Partner Enquiries Flow]
+   - Manager -> CRM System: Fetch Channel Partner Enquiries
+   - CRM System -> Database: Query channelpartners_collection
+   - Database --> CRM System: Return Pending CP Enquiries & Verification Documents
+   - CRM System --> Manager: Display Channel Partner Verification Queue
+
+5. [Monitor Pipeline & Performance Flow]
+   - Manager -> CRM System: View Project Pipeline Analytics
+   - CRM System -> Database: Aggregate Lead Stages (RNR, Site Visit, Booking)
+   - Database --> CRM System: Return Pipeline Counts & Analytics Data
+   - CRM System --> Manager: Live Real-Time Analytics & Funnel Charts Displayed
+
+================================================================================
+3. AGENT SEQUENCE DIAGRAM (Sales Representative)
+================================================================================
+Lifelines:
+• Lifeline 1: Agent (Actor)
+• Lifeline 2: CRM System (React Frontend & Node.js Express Backend)
+• Lifeline 3: Database (MongoDB Document Database)
+
+Message Sequence:
+1. [Login Flow]
+   - Agent -> CRM System: Login With Agent Credentials
+   - CRM System -> Database: Validate Agent Credentials
+   - Database --> CRM System: Valid (Agent Record & JWT Token)
+   - CRM System --> Agent: Login Successfully & Agent Dashboard Displayed
+
+2. [View Assigned Leads & Today's Follow-ups Flow]
+   - Agent -> CRM System: Fetch Assigned Leads & Today's Follow-up Queue
+   - CRM System -> Database: Query Leads (assignedAgent == AgentId)
+   - Database --> CRM System: Return Filtered Assigned Leads List
+   - CRM System --> Agent: Display Leads Queue & Priority Reminders (Hot/Warm/Cold)
+
+3. [Update Lead Stage & Log Timeline Flow]
+   - Agent -> CRM System: Update Stage (Site Visit / Booking) & Enter Remarks
+   - CRM System -> Database: Update Stage & Push Entry into lead.timeline Array
+   - Database --> CRM System: Lead Document & Timeline Array Updated
+   - CRM System --> Agent: Lead Updated Successfully & New Timeline Displayed
+
+4. [Set Next Follow-up Date Flow]
+   - Agent -> CRM System: Set Follow-up Date & Priority Status
+   - CRM System -> Database: Update followUpDate & status Fields in Database
+   - Database --> CRM System: Follow-up Schedule Saved
+   - CRM System --> Agent: Follow-up Date Scheduled Successfully
+
+5. [Create Walk-in Direct Lead Flow]
+   - Agent -> CRM System: Submit Direct Walk-in Client Lead Form
+   - CRM System -> Database: Save Lead Record Tagged with Agent ID
+   - Database --> CRM System: Lead Record Saved in Database
+   - CRM System --> Agent: Walk-in Lead Created Successfully
+
+================================================================================
+4. CHANNEL PARTNER SEQUENCE DIAGRAM (External Broker)
+================================================================================
+Lifelines:
+• Lifeline 1: Channel Partner (Actor)
+• Lifeline 2: CRM System (React Frontend & Node.js Express Backend)
+• Lifeline 3: Database (MongoDB Document Database)
+
+Message Sequence:
+1. [Online Registration Flow]
+   - Channel Partner -> CRM System: Submit Registration Form (Upload PAN, RERA, GST)
+   - CRM System -> Database: Save Partner Enquiry Record & Document Paths
+   - Database --> CRM System: Registration Application Saved (isVerified: false)
+   - CRM System --> Channel Partner: Registration Submitted (Application Under Review)
+
+2. [Login with Emailed Credentials Flow]
+   - Channel Partner -> CRM System: Login With Emailed Verified Credentials
+   - CRM System -> Database: Validate Channel Partner User Account
+   - Database --> CRM System: Valid (Partner Document & JWT Token)
+   - CRM System --> Channel Partner: Login Successfully & Partner Portal Displayed
+
+3. [Explore Mandate Projects Portfolio Flow]
+   - Channel Partner -> CRM System: Browse Mandate Projects Catalog
+   - CRM System -> Database: Query Projects (isMandateProject: true)
+   - Database --> CRM System: Return Available Mandate Projects List
+   - CRM System --> Channel Partner: Display Project Specs, Pricing & Marketing Collateral
+
+4. [Submit Prospective Client Lead Flow]
+   - Channel Partner -> CRM System: Submit Client Referral Lead Details
+   - CRM System -> Database: Save Lead with Channel Partner Referral Tag
+   - Database --> CRM System: Lead Saved in leads_collection
+   - CRM System --> Channel Partner: Client Referral Submitted Successfully
+
+5. [Track Referred Client Status & Conversion Flow]
+   - Channel Partner -> CRM System: Check Status of Referred Clients
+   - CRM System -> Database: Fetch Lead Stage Records (Site Visit Done, Booking)
+   - Database --> CRM System: Return Lead Stage & Status Updates
+   - CRM System --> Channel Partner: Display Real-Time Live Lead Progress Tracker
+
+--------------------------------------------------------------------------------
+DESIGN & PRESENTATION REQUIREMENTS (POWERPOINT 16:9 WIDESCREEN RATIO):
+1. Slide Aspect Ratio: 16:9 Widescreen (1920 × 1080 px).
+2. Visual Styling & Color Palette (Matching the User's Example Slides):
+   - Background: Clean Presentation Slate / Blue tint (#EEF2F6 or #F8FAFC).
+   - Top & Bottom Lifeline Header Boxes: Dark Navy / Slate rounded cards (#0F2137 or #1E293B) with crisp white bold text.
+   - Message Connectors:
+     • Request Messages: Solid horizontal lines with solid arrowheads (→).
+     • Response / Confirmation Messages: Dashed horizontal lines with arrowheads (⇢).
+   - Labels: Centered directly above message lines with clean typography (Segoe UI / Calibri, font size 14px-15px, dark text #0F172A).
+   - Header Bar: Title at the top:
+     "Section 4.1.3 Sequence Diagram: [Role Name] Workflow" with subtitle: "Real Estate CRM & Channel Partner Management System".
+
+--------------------------------------------------------------------------------
+OUTPUT FORMATS TO PROVIDE:
+For each of the 4 role sequence diagrams, please provide:
+1. Standard Mermaid.js code snippet (ready to render in Markdown / Mermaid live editor).
+2. PlantUML Sequence Diagram code snippet.
+3. Complete Standalone HTML/CSS Code (1920x1080 px, 16:9 ratio) using pure HTML5 and inline SVG/CSS so it can be viewed in any browser, screenshotted, or directly embedded into PowerPoint presentation slides with zero pixel distortion.
+
+Please make the design look extremely modern, crisp, professional, and academic for an M.Sc. Master's project presentation.
+================================================================================
