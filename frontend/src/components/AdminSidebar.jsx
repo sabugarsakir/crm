@@ -4,16 +4,12 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 
 export default function AdminSidebar({ show, handleClose }) {
-  const { uName, role, setToken } = useContext(AppContext);
+  const { uName, role, handleLogout } = useContext(AppContext);
   const navigate = useNavigate();
 
   const logout = () => {
-    navigate('/');
-    setToken('');
-    localStorage.removeItem('token');
-    localStorage.removeItem('name');
-    localStorage.removeItem('role');
-    localStorage.removeItem('id');
+    handleClose();
+    handleLogout(navigate);
   };
 
   return (

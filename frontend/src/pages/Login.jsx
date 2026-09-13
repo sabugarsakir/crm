@@ -3,8 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from 'axios'
 import { AppContext } from "../context/AppContext";
 import { assets } from '../assets/assets';
-import { toast } from "react-toastify";
-
+import notify from "../utils/notify";
 
 const Login = () => {
 
@@ -31,15 +30,18 @@ const Login = () => {
                 setUname(data.name)
                 localStorage.setItem('id',data.id)
                 setUId(data.id)
-                toast.success("You are logged in")
+                notify.success(
+                    `Welcome back, ${data.name}!`,
+                    `Authenticated as ${data.role} • Entering workspace...`
+                );
                 navigate(data.redirectUrl); // Redirect user based on role
             }
             else {
-                toast.error(data.message || "Invalid credentials");
+                notify.error("Authentication Failed", data.message || "Invalid email or password.");
             }
         } catch (error) {
             console.error("Login Error:", error);
-            toast.error(error.response?.data?.message || "Login failed. Please try again.");
+            notify.error("Login Error", error.response?.data?.message || "Server unreachable. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -104,12 +106,17 @@ const Login = () => {
                     )}
                 </button>
 
-                {/* Channel Partner Registration Link */}
+                {/* Channel Partner Program Links */}
                 <div className="cp-login-banner text-center pt-3 border-top">
                     <div className="small text-muted mb-2">Are you a Real Estate Broker / Channel Partner?</div>
-                    <Link to="/register-cp" className="btn btn-outline-warning btn-sm w-100 fw-semibold rounded-3 cp-reg-btn">
-                        <i className="fa-solid fa-handshake me-1"></i> Register as Channel Partner
-                    </Link>
+                    <div className="d-flex flex-column gap-2">
+                        <Link to="/channel-partner" className="btn btn-outline-primary btn-sm w-100 fw-semibold rounded-3 cp-reg-btn">
+                            <i className="fa-solid fa-compass me-1"></i> Explore Partner Program & Benefits
+                        </Link>
+                        <Link to="/register-cp" className="btn btn-primary btn-sm w-100 fw-semibold rounded-3">
+                            <i className="fa-solid fa-handshake me-1"></i> Register as Channel Partner
+                        </Link>
+                    </div>
                 </div>
             </form>
         </div>

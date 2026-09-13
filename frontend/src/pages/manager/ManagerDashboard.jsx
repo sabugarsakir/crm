@@ -3,7 +3,7 @@ import ComNavbar from '../../components/Navbar';
 import ManagerSidebar from '../../components/ManagerSidebar';
 import axios from 'axios';
 import { AppContext } from '../../context/AppContext';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import AdminSidebar from '../../components/AdminSidebar';
 
 const ManagerDashboard = () => {
@@ -24,6 +24,7 @@ const ManagerDashboard = () => {
     const itemsPerPageAttention = 10;
 
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // Default to current month
+    const [chartsReady, setChartsReady] = useState(false);
     const stageCategories = ["RNR", "follow-up", "site-visit", "site-visit-done", "revisit", "booking"];
 
     const handleClose = () => setShow(false);
@@ -97,10 +98,39 @@ const ManagerDashboard = () => {
         return acc;
         },{})
 
-    useEffect(() => {
-        fetchLeadsByMonth(selectedMonth);
-        getActiveProjects();
+    const stageColors = {
+        "RNR": "#94A3B8",
+        "follow-up": "#3B82F6",
+        "site-visit": "#F59E0B",
+        "site-visit-done": "#10B981",
+        "revisit": "#8B5CF6",
+        "booking": "#059669"
+    };
 
+    const stageChartData = stageCategories.map(stage => ({
+        name: stage.replace("-", " "),
+        count: leadCounts[stage] || 0,
+        color: stageColors[stage] || "#3B82F6"
+    }));
+
+    useEffect(() => {
+        let isMounted = true;
+        setChartsReady(false);
+        const loadManagerData = async () => {
+            try {
+                await Promise.all([fetchLeadsByMonth(selectedMonth), getActiveProjects()]);
+            } catch (err) {
+                console.error("Manager data load error:", err);
+            } finally {
+                if (isMounted) {
+                    setTimeout(() => {
+                        if (isMounted) setChartsReady(true);
+                    }, 80);
+                }
+            }
+        };
+        loadManagerData();
+        return () => { isMounted = false; };
     }, [selectedMonth]);
 
 
@@ -168,43 +198,134 @@ const ManagerDashboard = () => {
                     ))}
                 </div>
 
-                {/* Analytics Chart Card */}
-                <div className="dashboard-box mb-4">
-                    <div className="dashboard-title">
-                        <div>
-                            <h3 className="m-0"><i className="fa-solid fa-chart-line text-primary me-2"></i> Lead Ingestion Trends by Source</h3>
-                            <span className="small text-muted">Daily volume breakdown from Meta, Google, and Organic channels</span>
-                        </div>
-                        <div className="d-flex align-items-center gap-2">
-                            <span className="small fw-semibold text-muted">Month:</span>
-                            <select 
-                                className="form-select form-select-sm filterInput" 
-                                style={{ width: '160px', height: '36px' }}
-                                value={selectedMonth} 
-                                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                            >
-                                {Array.from({ length: 12 }, (_, i) => (
-                                    <option key={i + 1} value={i + 1}>
-                                        {new Date(2024, i).toLocaleString('default', { month: 'long' })}
-                                    </option>
-                                ))}
-                            </select>
+                {/* Analytics Charts Section */}
+                <div className="row g-4 mb-4">
+                    {/* Ingestion Trend by Source */}
+                    <div className="col-12 col-xl-7">
+                        <div className="dashboard-box h-100 mb-0">
+                            <div className="dashboard-title">
+                                <div>
+                                    <h3 className="m-0"><i className="fa-solid fa-chart-line text-primary me-2"></i> Lead Ingestion Trends by Source</h3>
+                                    <span className="small text-muted">Daily volume breakdown across Meta, Google & Organic channels</span>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className="small fw-semibold text-muted">Month:</span>
+                                    <select 
+                                        className="form-select form-select-sm filterInput" 
+                                        style={{ width: '150px', height: '36px' }}
+                                        value={selectedMonth} 
+                                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                                    >
+                                        {Array.from({ length: 12 }, (_, i) => (
+                                            <option key={i + 1} value={i + 1}>
+                                                {new Date(2024, i).toLocaleString('default', { month: 'long' })}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="chart-container pt-3" style={{ minHeight: '290px' }}>
+                                {!chartsReady ? (
+                                    <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 290 }}>
+                                        <div className="spinner-border text-primary spinner-border-sm mb-2" role="status"></div>
+                                        <span className="text-muted small">Loading lead ingestion data...</span>
+                                    </div>
+                                ) : leadData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={290} debounce={50}>
+                                        <LineChart key={`mgr-line-${selectedMonth}`} data={leadData} margin={{ top: 10, right: 20, left: -15, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                                            <XAxis 
+                                                dataKey="date" 
+                                                stroke="#94A3B8" 
+                                                fontSize={12} 
+                                                tickFormatter={(val) => {
+                                                    try {
+                                                        const parts = val.split('-');
+                                                        if (parts.length === 3) {
+                                                            const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                                                            return `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })}`;
+                                                        }
+                                                        return val;
+                                                    } catch {
+                                                        return val;
+                                                    }
+                                                }}
+                                            />
+                                            <YAxis stroke="#94A3B8" fontSize={12} allowDecimals={false} />
+                                            <Tooltip 
+                                                contentStyle={{ borderRadius: '10px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} 
+                                                labelFormatter={(val) => `Date: ${val}`}
+                                            />
+                                            <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                            <Line type="monotone" dataKey="Meta" stroke="#2563EB" strokeWidth={2.5} name="Meta Leads" activeDot={{ r: 6 }} dot={{ r: 3 }} isAnimationActive={true} animationDuration={900} animationEasing="ease-out" animationBegin={0} />
+                                            <Line type="monotone" dataKey="Google" stroke="#EF4444" strokeWidth={2.5} name="Google Leads" activeDot={{ r: 6 }} dot={{ r: 3 }} isAnimationActive={true} animationDuration={900} animationEasing="ease-out" animationBegin={50} />
+                                            <Line type="monotone" dataKey="Other" stroke="#10B981" strokeWidth={2.5} name="Other Leads" activeDot={{ r: 6 }} dot={{ r: 3 }} isAnimationActive={true} animationDuration={900} animationEasing="ease-out" animationBegin={100} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="text-center py-5 text-muted">
+                                        <i className="fa-solid fa-chart-line fa-2x mb-2 text-secondary opacity-50"></i>
+                                        <p className="mb-0">No lead ingestion records for this month.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    <div className="chart-container pt-3">
-                        <ResponsiveContainer width="100%" height={280}>
-                            <LineChart data={leadData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                                <XAxis dataKey="date" stroke="#94A3B8" fontSize={12} />
-                                <YAxis stroke="#94A3B8" fontSize={12} />
-                                <Tooltip contentStyle={{ borderRadius: '10px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
-                                <Legend />
-                                <Line type="monotone" dataKey="Meta" stroke="#2563EB" strokeWidth={2} name="Meta Leads" dot={false} />
-                                <Line type="monotone" dataKey="Google" stroke="#EF4444" strokeWidth={2} name="Google Leads" dot={false} />
-                                <Line type="monotone" dataKey="Other" stroke="#10B981" strokeWidth={2} name="Other Leads" dot={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
+                    {/* Stage Conversion Funnel Chart */}
+                    <div className="col-12 col-xl-5">
+                        <div className="dashboard-box h-100 mb-0">
+                            <div className="dashboard-title">
+                                <div>
+                                    <h3 className="m-0"><i className="fa-solid fa-filter text-primary me-2"></i> Pipeline Conversion Funnel</h3>
+                                    <span className="small text-muted">Active leads at each sales progression stage</span>
+                                </div>
+                                <span className="badge bg-light text-dark border">
+                                    {leads.length} Leads
+                                </span>
+                            </div>
+
+                            <div className="chart-container pt-3" style={{ minHeight: '290px' }}>
+                                {!chartsReady ? (
+                                    <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 290 }}>
+                                        <div className="spinner-border text-primary spinner-border-sm mb-2" role="status"></div>
+                                        <span className="text-muted small">Loading conversion funnel...</span>
+                                    </div>
+                                ) : (
+                                    <ResponsiveContainer width="100%" height={290} debounce={50}>
+                                        <BarChart key="mgr-bar" data={stageChartData} margin={{ top: 10, right: 15, left: -20, bottom: 25 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                                            <XAxis 
+                                                dataKey="name" 
+                                                stroke="#64748B" 
+                                                fontSize={11} 
+                                                interval={0}
+                                                angle={-20}
+                                                textAnchor="end"
+                                            />
+                                            <YAxis stroke="#94A3B8" fontSize={12} allowDecimals={false} />
+                                            <Tooltip 
+                                                contentStyle={{ borderRadius: '10px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} 
+                                                formatter={(value) => [`${value} Leads`, 'Volume']}
+                                            />
+                                            <Bar 
+                                                dataKey="count" 
+                                                radius={[6, 6, 0, 0]}
+                                                isAnimationActive={true}
+                                                animationDuration={900}
+                                                animationEasing="ease-out"
+                                                animationBegin={0}
+                                            >
+                                                {stageChartData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
 

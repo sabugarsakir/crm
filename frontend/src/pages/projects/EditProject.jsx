@@ -2,7 +2,8 @@ import React, { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../context/AppContext";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import { toast } from "react-toastify";
+import Swal from "sweetalert2";
+import notify from "../../utils/notify";
 import AdminSidebar from "../../components/AdminSidebar";
 import ComNavbar from "../../components/Navbar";
 
@@ -40,10 +41,11 @@ const EditProject = () => {
                 setSelectedAgents(data.project.assignedAgents || []);
                 setIsMandateProject(data.project.isMandateProject || false);
             } else {
-                toast.error(data.message);
+                notify.error("Error", data.message || "Failed to load project details.");
             }
         } catch (error) {
             console.error("Error fetching project info:", error);
+            notify.error("Error", "Could not fetch project details.");
         }
     };
 
@@ -54,7 +56,7 @@ const EditProject = () => {
             if (data.success) {
                 setAgents(data.agents);
             } else {
-                toast.error("Failed to fetch agents.");
+                notify.error("Fetch Error", "Failed to fetch agents.");
             }
         } catch (error) {
             console.error("Error fetching agents:", error);
@@ -80,7 +82,7 @@ const EditProject = () => {
         e.preventDefault();
 
         if (!name || !description || selectedAgents.length === 0) {
-            toast.error("Please fill all fields and select at least one agent.");
+            notify.warning("Incomplete Form", "Please fill all fields and select at least one agent.");
             return;
         }
 
@@ -96,14 +98,51 @@ const EditProject = () => {
             });
 
             if (data.success) {
-                toast.success("Project updated successfully!");
+                notify.success("Project Updated", `Changes to "${name}" saved successfully.`);
             } else {
-                toast.error(data.message);
+                notify.error("Update Failed", data.message || "Could not update project.");
             }
         } catch (error) {
             console.error(error);
-            toast.error("Error updating project.");
+            notify.error("Error", "Error updating project.");
         }
+    };
+
+    const handleDelete = () => {
+        Swal.fire({
+            title: "Delete Project?",
+            text: `Are you sure you want to delete "${name}"? This will permanently remove the project and its associated leads.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#EF4444",
+            cancelButtonColor: "#64748B",
+            confirmButtonText: '<i class="fa-solid fa-trash me-1"></i> Yes, Delete',
+            cancelButtonText: "Cancel",
+            reverseButtons: true,
+            background: "#0F172A",
+            color: "#F8FAFC",
+            customClass: {
+                popup: 'rounded-4 border border-secondary shadow-lg'
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const { data } = await axios.delete(`${backendUrl}/project/delete/${projectId}`, {
+                        headers: { token },
+                    });
+
+                    if (data.success) {
+                        notify.success("Project Deleted", `"${name}" has been permanently removed.`);
+                        navigate(`${role === 'Admin' ? '/admin' : '/manager'}/projects`);
+                    } else {
+                        notify.error("Delete Failed", data.message || "Failed to delete project.");
+                    }
+                } catch (error) {
+                    console.error("Error deleting project:", error);
+                    notify.error("Error", error.response?.data?.message || "Failed to delete project.");
+                }
+            }
+        });
     };
 
     return (
@@ -205,9 +244,16 @@ const EditProject = () => {
                 </div>
 
 
-                <button type="submit" className="btn-primary">
-                    Update Project
-                </button>
+                <div className="d-flex align-items-center gap-3">
+                    <button type="submit" className="btn-primary">
+                        <i className="fa-solid fa-check me-1"></i> Update Project
+                    </button>
+                    {(role === 'Admin' || role === 'Manager') && (
+                        <button type="button" onClick={handleDelete} className="btn-action-delete px-3 py-2">
+                            <i className="fa-solid fa-trash me-1"></i> Delete Project
+                        </button>
+                    )}
+                </div>
             </form>
         </div>
         </>

@@ -6,14 +6,15 @@ import { useNavigate } from 'react-router-dom';
 import Button from "react-bootstrap/Button";
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
-import { toast } from "react-toastify";
+import Swal from 'sweetalert2';
+import notify from '../../utils/notify';
 import CreateProject from '../projects/CreateProject';
 import ManagerSidebar from '../../components/ManagerSidebar';
 import AdminSidebar from '../../components/AdminSidebar';
 import ComNavbar from '../../components/Navbar';
 
 const GetProjects = () => {
-    const { backendUrl, token } = useContext(AppContext);
+    const { backendUrl, token, role } = useContext(AppContext);
 
     const [projects, setProjects] = useState([]);
     const [agents, setAgents] = useState([]);
@@ -47,9 +48,10 @@ const GetProjects = () => {
         try {
             const { data } = await axios.get(`${backendUrl}/project/get`, { headers: { token } });
             if (data.success) setProjects(data.projects);
-            else toast.error(data.message);
+            else notify.error("Fetch Error", data.message || "Failed to load projects.");
         } catch (error) {
             console.error(error);
+            notify.error("Error", "Could not fetch projects.");
         }
     };
 
@@ -58,10 +60,47 @@ const GetProjects = () => {
         try {
             const { data } = await axios.get(`${backendUrl}/user/get/agents`);
             if (data.success) setAgents(data.agents);
-            else toast.error(data.message);
+            else notify.error("Fetch Error", data.message || "Failed to load agents.");
         } catch (error) {
             console.error(error);
         }
+    };
+
+    const handleDeleteProject = (id, projectName) => {
+        Swal.fire({
+            title: "Delete Project?",
+            text: `Are you sure you want to delete "${projectName}"? This will permanently remove the project and its associated leads.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#EF4444",
+            cancelButtonColor: "#64748B",
+            confirmButtonText: '<i class="fa-solid fa-trash me-1"></i> Yes, Delete',
+            cancelButtonText: "Cancel",
+            reverseButtons: true,
+            background: "#0F172A",
+            color: "#F8FAFC",
+            customClass: {
+                popup: 'rounded-4 border border-secondary shadow-lg'
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const { data } = await axios.delete(`${backendUrl}/project/delete/${id}`, {
+                        headers: { token },
+                    });
+
+                    if (data.success) {
+                        notify.success("Project Deleted", `"${projectName}" has been permanently removed.`);
+                        getProjects();
+                    } else {
+                        notify.error("Delete Failed", data.message || "Failed to delete project.");
+                    }
+                } catch (error) {
+                    console.error("Error deleting project:", error);
+                    notify.error("Error", error.response?.data?.message || "Failed to delete project.");
+                }
+            }
+        });
     };
 
     useEffect(() => {
@@ -72,38 +111,38 @@ const GetProjects = () => {
     // Handle creating a lead
     const handleCreateLead = async () => {
         if (!name || !email ||!phone ||!source ||!selectedProject || selectedAgents.length === 0) {
-            toast.error("Please fill all fields and select at least one agent.");
+            notify.warning("Incomplete Form", "Please fill all fields and select at least one agent.");
             return;
         }
-        setLoading(true); // Show loader
+        setLoading(true);
         try {
             const { data } = await axios.post(`${backendUrl}/lead/create`, {
                 name,
                 email,
                 phone,
                 source,
-                assignedAgent: selectedAgents, // Sending multiple agents
+                assignedAgent: selectedAgents,
                 project: selectedProject
             });
 
             if (data.success) {
-                toast.success("Lead created successfully!");
-                setName('')
-                setEmail('')
-                setPhone('')
-                setSource('')
-                setSelectedProject('')
-                setSelectedAgents([])
+                notify.success("Lead Created", `New lead "${name}" added successfully.`);
+                setName('');
+                setEmail('');
+                setPhone('');
+                setSource('');
+                setSelectedProject('');
+                setSelectedAgents([]);
                 handleCloseModal();
             } else {
-                toast.error(data.message);
+                notify.error("Creation Failed", data.message || "Could not create lead.");
             }
         } catch (error) {
             console.error(error);
-            toast.error("Failed to create lead.");
+            notify.error("Error", "Failed to create lead.");
         }
         finally {
-            setLoading(false); // Hide loader after request completes
+            setLoading(false);
         }
     };
 
@@ -163,12 +202,17 @@ const GetProjects = () => {
                                 </div>
                             </div>
                             <div className="d-flex align-items-center gap-2">
-                                <button onClick={() => navigate(`/manage/project/edit/${item._id}`)} className="btn-secondary">
+                                <button onClick={() => navigate(`/manage/project/edit/${item._id}`)} className="btn-secondary" title="Edit Project">
                                     <i className="fa-solid fa-pen-to-square"></i> Edit
                                 </button>
-                                <button onClick={() => navigate(`/manage/lead/${item._id}`)} className="btn-primary">
+                                <button onClick={() => navigate(`/manage/lead/${item._id}`)} className="btn-primary" title="Manage Leads">
                                     <i className="fa-solid fa-users"></i> Manage Leads
                                 </button>
+                                {(role === 'Admin' || role === 'Manager') && (
+                                    <button onClick={() => handleDeleteProject(item._id, item.name)} className="btn-action-delete" title="Delete Project">
+                                        <i className="fa-solid fa-trash"></i> Delete
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))
@@ -280,7 +324,11 @@ const GetProjects = () => {
             </Modal>
 
             {/* create project Modal */}
-            <CreateProject show={showCreateProjectModal} onHide={handleCloseCreateProjectModal}/>
+            <CreateProject 
+                show={showCreateProjectModal} 
+                onHide={handleCloseCreateProjectModal}
+                onProjectCreated={getProjects}
+            />
         </div>
     );
 }

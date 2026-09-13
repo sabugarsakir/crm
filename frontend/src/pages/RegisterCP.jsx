@@ -146,9 +146,14 @@ const RegisterCP = () => {
           <p className="text-muted cp-subtitle">
             Join our exclusive real estate network. Register your agency and start collaborating on premium mandate projects.
           </p>
-          <Link to="/login" className="btn btn-outline-dark btn-sm rounded-pill px-3 mt-1">
-            <i className="fa-solid fa-arrow-left me-1"></i> Back to Login
-          </Link>
+          <div className="d-flex justify-content-center gap-2 mt-2">
+            <Link to="/channel-partner" className="btn btn-outline-primary btn-sm rounded-pill px-3">
+              <i className="fa-solid fa-compass me-1"></i> Partner Program Overview
+            </Link>
+            <Link to="/login" className="btn btn-outline-secondary btn-sm rounded-pill px-3">
+              <i className="fa-solid fa-arrow-left me-1"></i> Back to Login
+            </Link>
+          </div>
         </div>
 
         {isSubmitted ? (

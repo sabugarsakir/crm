@@ -5,8 +5,8 @@ import axios from 'axios';
 import Button from "react-bootstrap/esm/Button";
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
-import { toast } from "react-toastify";
 import Swal from "sweetalert2";
+import notify from "../../utils/notify";
 import AdminSidebar from '../../components/AdminSidebar';
 import ComNavbar from '../../components/Navbar';
 
@@ -69,28 +69,34 @@ const fetchAllProjects = async () => {
       );
   
       if (data.success) {
-        toast.success("Lead updated successfully!");
+        notify.success("Lead Updated", `Lead "${selectedLead.name}" updated successfully.`);
         handleCloseModal(); // Close modal after success
         getLeads(); // Refresh lead data
       } else {
-        toast.error("Failed to update lead: " + data.message);
+        notify.error("Update Failed", data.message || "Failed to update lead.");
       }
     } catch (error) {
       console.error("Error updating lead:", error);
-      toast.error("Something went wrong. Please try again.");
+      notify.error("Error", "Something went wrong. Please try again.");
     }
   };
   
-  const handleDeleteLead = async (id) => {
-    // Show confirmation popup
+  const handleDeleteLead = async (id, leadName = "this lead") => {
     Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
+      title: "Delete Lead?",
+      text: `Are you sure you want to delete ${leadName}? This action cannot be undone.`,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!"
+      confirmButtonColor: "#EF4444",
+      cancelButtonColor: "#64748B",
+      confirmButtonText: '<i class="fa-solid fa-trash me-1"></i> Yes, Delete',
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+      background: "#0F172A",
+      color: "#F8FAFC",
+      customClass: {
+        popup: 'rounded-4 border border-secondary shadow-lg'
+      }
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
@@ -99,14 +105,14 @@ const fetchAllProjects = async () => {
           });
 
           if (data.success) {
-            toast.success("Lead deleted successfully!");
+            notify.success("Lead Deleted", "Lead removed successfully.");
             getLeads(); // Refresh the lead list
           } else {
-            toast.error("Failed to delete lead: " + data.message);
+            notify.error("Delete Failed", data.message || "Failed to delete lead.");
           }
         } catch (error) {
           console.error("Error deleting lead:", error);
-          toast.error("Something went wrong. Please try again.");
+          notify.error("Error", "Something went wrong. Please try again.");
         }
       }
     });
@@ -121,7 +127,7 @@ const fetchAllProjects = async () => {
     if (data.success) {
       setLeads(data.leads);
     } else {
-      toast.error(data.message);
+      notify.error("Error", data.message || "Failed to load leads.");
     }
   };
 

@@ -4,17 +4,12 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext';
 
 const ManagerSidebar = ({show, handleClose}) => {
-  const navigate = useNavigate()
-  const {uName, setToken} = useContext(AppContext)
-  const logout = () =>{
-    navigate('/')
-    setToken('');
-    localStorage.removeItem('token')
-    localStorage.removeItem('name')
-    localStorage.removeItem('role')
-    localStorage.removeItem('id')
-
-  }
+  const navigate = useNavigate();
+  const { uName, handleLogout } = useContext(AppContext);
+  const logout = () => {
+    handleClose();
+    handleLogout(navigate);
+  };
   return (
     <div>
       <Offcanvas show={show} onHide={handleClose}>

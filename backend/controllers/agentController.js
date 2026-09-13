@@ -1,10 +1,12 @@
 import userModel from "../models/User.js";
 import User from "../models/User.js";
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcrypt';
+import projectModel from "../models/Project.js";
+import leadModel from "../models/Lead.js";
 
 const getAgents = async (req, res) => {
     try {
-        const agents = await User.find({ role: {"$in": ["Agent", "Channel Partner" ]} });
+        const agents = await User.find({ role: { "$in": ["Agent", "Manager", "Channel Partner"] } }).sort({ _id: -1 });
         res.json({ success: true, agents });
     } catch (error) {
         res.status(500).json({ success: false, message: "Error fetching agents" });
@@ -47,4 +49,42 @@ const updateAgent = async (req, res) => {
         
     }
 }
-export { getAgents, getAgent, updateAgent };
+
+const deleteAgent = async (req, res) => {
+    try {
+        const { agentId } = req.params;
+
+        // Security check: Only Admin can delete users
+        if (req.body.role !== 'Admin') {
+            return res.status(403).json({ success: false, message: "Unauthorized: Only Admin can remove users from the system." });
+        }
+
+        if (String(req.body.userId) === String(agentId)) {
+            return res.status(400).json({ success: false, message: "You cannot delete your own admin account." });
+        }
+
+        const user = await User.findById(agentId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found." });
+        }
+
+        // Clean up user references in projects & leads
+        await projectModel.updateMany(
+            { assignedAgents: agentId },
+            { $pull: { assignedAgents: agentId } }
+        );
+        await leadModel.updateMany(
+            { assignedAgent: agentId },
+            { $pull: { assignedAgent: agentId } }
+        );
+
+        await User.findByIdAndDelete(agentId);
+        res.json({ success: true, message: "User removed successfully from the system." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error deleting user: " + error.message });
+    }
+};
+
+export { getAgents, getAgent, updateAgent, deleteAgent };
+
+

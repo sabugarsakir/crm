@@ -4,6 +4,7 @@ import AdminSidebar from '../../components/AdminSidebar';
 import { AppContext } from '../../context/AppContext';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell, PieChart, Pie } from 'recharts';
 
 const AdminDashboard = () => {
 
@@ -23,6 +24,8 @@ const AdminDashboard = () => {
   // Pagination States for Leads Requiring Attention
   const [currentPageAttention, setCurrentPageAttention] = useState(1);
   const itemsPerPageAttention = 10;
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [chartsReady, setChartsReady] = useState(false);
   
 
   const getAllLeads = async () => {
@@ -42,8 +45,8 @@ const AdminDashboard = () => {
       setTodaysLeads(filteredLeads);
 
       // Filter leads with "set-stage"
-    const stageLeads = data.leads.filter(lead => lead.stage === "set-stage");
-    setSetStageLeads(stageLeads);
+      const stageLeads = data.leads.filter(lead => lead.stage === "set-stage");
+      setSetStageLeads(stageLeads);
     } else {
       toast.error(data.message);
     }
@@ -68,10 +71,75 @@ const AdminDashboard = () => {
       return acc;
     },{})
 
-  useEffect(()=>{
-    getAllLeads();
-    getActiveProjects();
-  },[])
+  const stageCategories = ["RNR", "follow-up", "site-visit", "site-visit-done", "revisit", "booking"];
+
+  // Stage colors and chart dataset
+  const stageColors = {
+    "RNR": "#94A3B8",
+    "follow-up": "#3B82F6",
+    "site-visit": "#F59E0B",
+    "site-visit-done": "#10B981",
+    "revisit": "#8B5CF6",
+    "booking": "#059669"
+  };
+
+  const stageChartData = stageCategories.map(stage => ({
+    name: stage.replace("-", " "),
+    count: leadCounts[stage] || 0,
+    color: stageColors[stage] || "#3B82F6"
+  }));
+
+  // Ingestion data by selected month
+  const filteredMonthLeads = leads.filter(lead => {
+    if (!lead.createdAt) return false;
+    const leadDate = new Date(lead.createdAt);
+    return leadDate.getMonth() + 1 === selectedMonth;
+  });
+
+  const groupedLeads = filteredMonthLeads.reduce((acc, lead) => {
+    const date = lead.createdAt.split("T")[0];
+    const source = lead.source || "Other";
+    if (!acc[date]) {
+      acc[date] = { date, Meta: 0, Google: 0, Other: 0 };
+    }
+    acc[date][source] = (acc[date][source] || 0) + 1;
+    return acc;
+  }, {});
+
+  const ingestionChartData = Object.values(groupedLeads).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Channel Acquisition Share (Pie Chart)
+  const sourceCounts = leads.reduce((acc, lead) => {
+    const src = lead.source || "Other";
+    acc[src] = (acc[src] || 0) + 1;
+    return acc;
+  }, {});
+
+  const channelPieData = [
+    { name: "Meta Ads", value: sourceCounts["Meta"] || 0, color: "#2563EB" },
+    { name: "Google Ads", value: sourceCounts["Google"] || 0, color: "#EF4444" },
+    { name: "Organic / Other", value: sourceCounts["Other"] || 0, color: "#10B981" },
+  ].filter(item => item.value > 0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadDashboard = async () => {
+      try {
+        await Promise.all([getAllLeads(), getActiveProjects()]);
+      } catch (err) {
+        console.error("Dashboard data load error:", err);
+      } finally {
+        if (isMounted) {
+          // Allow DOM, layout and scrollbars to settle before triggering chart entrance animations
+          setTimeout(() => {
+            if (isMounted) setChartsReady(true);
+          }, 80);
+        }
+      }
+    };
+    loadDashboard();
+    return () => { isMounted = false; };
+  }, []);
 
   // Pagination Logic for Today's Follow-up
   const indexOfLastToday = currentPage * leadsPerPage;
@@ -109,8 +177,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const stageCategories = ["RNR", "follow-up", "site-visit", "site-visit-done", "revisit", "booking"];
-
   return (
     <div className='pb-5'>
       <AdminSidebar show={show} handleClose={handleClose}/>
@@ -138,6 +204,202 @@ const AdminDashboard = () => {
               <p>{leadCounts[stage] || 0}</p>
             </div>
           ))}
+        </div>
+
+        {/* Admin Business Intelligence & Analytics Section */}
+        <div className="row g-4 mb-4">
+          {/* Monthly Lead Ingestion Trend */}
+          <div className="col-12 col-xl-7">
+            <div className="dashboard-box h-100 mb-0">
+              <div className="dashboard-title">
+                <div>
+                  <h3 className="m-0"><i className="fa-solid fa-chart-area text-primary me-2"></i> Lead Ingestion Trends by Channel</h3>
+                  <span className="small text-muted">Daily volume breakdown across Meta, Google & Direct channels</span>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                  <span className="small fw-semibold text-muted">Month:</span>
+                  <select 
+                    className="form-select form-select-sm filterInput" 
+                    style={{ width: '150px', height: '36px' }}
+                    value={selectedMonth} 
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        {new Date(2024, i).toLocaleString('default', { month: 'long' })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="chart-container pt-3" style={{ minHeight: '280px' }}>
+                {!chartsReady ? (
+                  <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 280 }}>
+                    <div className="spinner-border text-primary spinner-border-sm mb-2" role="status"></div>
+                    <span className="text-muted small">Loading ingestion trends...</span>
+                  </div>
+                ) : ingestionChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={280} debounce={50}>
+                    <AreaChart key={`admin-area-${selectedMonth}`} data={ingestionChartData} margin={{ top: 10, right: 20, left: -15, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="colorMeta" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2563EB" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0}/>
+                        </linearGradient>
+                        <linearGradient id="colorGoogle" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#EF4444" stopOpacity={0.35}/>
+                          <stop offset="95%" stopColor="#EF4444" stopOpacity={0.0}/>
+                        </linearGradient>
+                        <linearGradient id="colorOther" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.35}/>
+                          <stop offset="95%" stopColor="#10B981" stopOpacity={0.0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                      <XAxis 
+                        dataKey="date" 
+                        stroke="#94A3B8" 
+                        fontSize={12} 
+                        tickFormatter={(val) => {
+                          try {
+                            const parts = val.split('-');
+                            if (parts.length === 3) {
+                              const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                              return `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })}`;
+                            }
+                            return val;
+                          } catch {
+                            return val;
+                          }
+                        }}
+                      />
+                      <YAxis stroke="#94A3B8" fontSize={12} allowDecimals={false} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '10px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} 
+                        labelFormatter={(val) => `Date: ${val}`}
+                      />
+                      <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                      <Area type="monotone" dataKey="Meta" stroke="#2563EB" strokeWidth={2} fillOpacity={1} fill="url(#colorMeta)" name="Meta Ads" isAnimationActive={true} animationDuration={900} animationEasing="ease-out" animationBegin={0} />
+                      <Area type="monotone" dataKey="Google" stroke="#EF4444" strokeWidth={2} fillOpacity={1} fill="url(#colorGoogle)" name="Google Ads" isAnimationActive={true} animationDuration={900} animationEasing="ease-out" animationBegin={50} />
+                      <Area type="monotone" dataKey="Other" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorOther)" name="Other / Referrals" isAnimationActive={true} animationDuration={900} animationEasing="ease-out" animationBegin={100} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center py-5 text-muted">
+                    <i className="fa-solid fa-chart-area fa-2x mb-2 text-secondary opacity-50"></i>
+                    <p className="mb-0">No lead ingestion data for this month.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Lead Channel Share (Pie / Donut Chart) */}
+          <div className="col-12 col-xl-5">
+            <div className="dashboard-box h-100 mb-0">
+              <div className="dashboard-title">
+                <div>
+                  <h3 className="m-0"><i className="fa-solid fa-pie-chart text-primary me-2"></i> Acquisition Sources</h3>
+                  <span className="small text-muted">Overall marketing channel contribution</span>
+                </div>
+                <span className="badge bg-primary rounded-pill">{leads.length} Total</span>
+              </div>
+
+              <div className="chart-container pt-2" style={{ minHeight: '230px' }}>
+                {!chartsReady ? (
+                  <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 230 }}>
+                    <div className="spinner-border text-primary spinner-border-sm mb-2" role="status"></div>
+                    <span className="text-muted small">Loading acquisition share...</span>
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={230} debounce={50}>
+                      <PieChart key="admin-pie">
+                        <Pie
+                          data={channelPieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={80}
+                          paddingAngle={4}
+                          dataKey="value"
+                          isAnimationActive={true}
+                          animationDuration={900}
+                          animationEasing="ease-out"
+                          animationBegin={0}
+                        >
+                          {channelPieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '10px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} 
+                          formatter={(val, name) => [`${val} Leads (${((val / (leads.length || 1)) * 100).toFixed(1)}%)`, name]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    {/* Custom Legend Badges */}
+                    <div className="d-flex justify-content-center gap-3 pt-2">
+                      {channelPieData.map((item) => (
+                        <div key={item.name} className="d-flex align-items-center gap-1 small">
+                          <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.color, display: 'inline-block' }}></span>
+                          <span className="text-muted">{item.name}:</span>
+                          <strong className="text-dark">{item.value}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Pipeline Stage Conversion Bar Chart */}
+        <div className="dashboard-box mb-4">
+          <div className="dashboard-title">
+            <div>
+              <h3 className="m-0"><i className="fa-solid fa-filter text-primary me-2"></i> Pipeline Conversion Funnel</h3>
+              <span className="small text-muted">Stage-wise distribution of all CRM opportunities from initial contact to booking</span>
+            </div>
+            <span className="badge bg-light text-dark border">
+              <i className="fa-solid fa-circle-check text-success me-1"></i> {leadCounts["booking"] || 0} Bookings Closed
+            </span>
+          </div>
+
+          <div className="chart-container pt-3" style={{ minHeight: '260px' }}>
+            {!chartsReady ? (
+              <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 260 }}>
+                <div className="spinner-border text-primary spinner-border-sm mb-2" role="status"></div>
+                <span className="text-muted small">Loading conversion funnel...</span>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260} debounce={50}>
+                <BarChart key="admin-bar" data={stageChartData} margin={{ top: 15, right: 20, left: -15, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                  <XAxis dataKey="name" stroke="#64748B" fontSize={12} />
+                  <YAxis stroke="#94A3B8" fontSize={12} allowDecimals={false} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '10px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} 
+                    formatter={(value) => [`${value} Leads`, 'Volume']}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    radius={[6, 6, 0, 0]}
+                    isAnimationActive={true}
+                    animationDuration={900}
+                    animationEasing="ease-out"
+                    animationBegin={0}
+                  >
+                    {stageChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
 
         {/* 2-Column Dashboard Grid */}
